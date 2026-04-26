@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
-import { Plus, Edit, Trash2, X, ShieldCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, X } from 'lucide-react';
 
 interface License {
   id: number;

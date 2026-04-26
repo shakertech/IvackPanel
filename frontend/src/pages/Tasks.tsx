@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
-import { Plus, Eye, Trash2, X, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Plus, Eye, Trash2, X } from 'lucide-react';
 
 interface Task {
   id: string;
@@ -16,7 +15,7 @@ interface Task {
 }
 
 const Tasks = () => {
-  const { user } = useAuth();
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);

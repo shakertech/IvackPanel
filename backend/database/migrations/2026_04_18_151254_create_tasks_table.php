@@ -23,6 +23,10 @@ return new class extends Migration
             $table->string('status')->nullable()->default('active');
             $table->string('result')->nullable()->default('waiting');
             $table->string('paylink')->nullable()->default(null);
+            $table->string('proxy_ip')->nullable()->default(null);
+            $table->string('proxy_port')->nullable()->default(null);
+            $table->string('proxy_username')->nullable()->default(null);
+            $table->string('proxy_password')->nullable()->default(null);
             $table->timestamps();
         });
     }

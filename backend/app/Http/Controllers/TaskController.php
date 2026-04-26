@@ -56,6 +56,10 @@ class TaskController extends Controller
             'status' => 'nullable|string',
             'result' => 'nullable|string',
             'paylink' => 'nullable|string',
+            'proxy_ip' => 'nullable|string',
+            'proxy_port' => 'nullable|string',
+            'proxy_username' => 'nullable|string',
+            'proxy_password' => 'nullable|string',
         ]);
 
         $data = $validated;
@@ -130,6 +134,10 @@ class TaskController extends Controller
             'status' => 'nullable|string',
             'result' => 'nullable|string',
             'paylink' => 'nullable|string',
+            'proxy_ip' => 'nullable|string',
+            'proxy_port' => 'nullable|string',
+            'proxy_username' => 'nullable|string',
+            'proxy_password' => 'nullable|string',
         ]);
 
         $task->update($validated);

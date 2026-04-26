@@ -19,6 +19,10 @@ interface Task {
   paylink?: string | null;
   user_id?: string;
   license_id?: string;
+  proxy_ip?: string;
+  proxy_port?: string;
+  proxy_username?: string;
+  proxy_password?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -311,6 +315,7 @@ const Tasks = () => {
                       <th>Priority</th>
                       <th>Status</th>
                       <th>Result</th>
+                      <th>Proxy</th>
                       <th>Payment</th>                  
                       <th style={{ width: '120px' }}>Actions</th>
                     </tr>
@@ -342,6 +347,11 @@ const Tasks = () => {
                         </td>
                         <td>{getStatusBadge(task)}</td>
                         <td>{getResultBadge(task.result)}</td>
+                        <td>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>
+                            {task.proxy_ip || <span style={{ color: 'var(--text-dim)' }}>—</span>}
+                          </span>
+                        </td>
                         <td>
                           {task.paylink ? (
                             <button
@@ -470,6 +480,22 @@ const Tasks = () => {
                       <option value="high">High</option>
                     </select>
                   </div>
+                  <div className="form-group">
+                    <label className="form-label">Proxy IP</label>
+                    <input className="form-input" value={formData.proxy_ip || ''} onChange={e => setFormData({ ...formData, proxy_ip: e.target.value })} placeholder="192.168.1.1" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Proxy Port</label>
+                    <input className="form-input" value={formData.proxy_port || ''} onChange={e => setFormData({ ...formData, proxy_port: e.target.value })} placeholder="8080" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Proxy Username</label>
+                    <input className="form-input" value={formData.proxy_username || ''} onChange={e => setFormData({ ...formData, proxy_username: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Proxy Password</label>
+                    <input type="password" className="form-input" value={formData.proxy_password || ''} onChange={e => setFormData({ ...formData, proxy_password: e.target.value })} />
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
@@ -519,6 +545,22 @@ const Tasks = () => {
                   <div className="form-group">
                     <label className="form-label">Status</label>
                     <input className="form-input" value={formData.status || ''} onChange={e => setFormData({ ...formData, status: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Proxy IP</label>
+                    <input className="form-input" value={formData.proxy_ip || ''} onChange={e => setFormData({ ...formData, proxy_ip: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Proxy Port</label>
+                    <input className="form-input" value={formData.proxy_port || ''} onChange={e => setFormData({ ...formData, proxy_port: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Proxy Username</label>
+                    <input className="form-input" value={formData.proxy_username || ''} onChange={e => setFormData({ ...formData, proxy_username: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Proxy Password</label>
+                    <input type="password" className="form-input" value={formData.proxy_password || ''} onChange={e => setFormData({ ...formData, proxy_password: e.target.value })} />
                   </div>
                 </div>
               </div>
@@ -572,6 +614,10 @@ const Tasks = () => {
                 <div className="detail-item">
                   <div className="detail-label">Result</div>
                   <div className="detail-value">{selectedTask.result || 'Waiting'}</div>
+                </div>
+                <div className="detail-item">
+                  <div className="detail-label">Proxy</div>
+                  <div className="detail-value">{selectedTask.proxy_ip ? `${selectedTask.proxy_ip}:${selectedTask.proxy_port || ''}` : 'None'}</div>
                 </div>
                 <div className="detail-item">
                   <div className="detail-label">Created</div>

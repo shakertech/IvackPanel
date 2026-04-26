@@ -22,6 +22,10 @@ class Task extends Model
         'status',
         'result',
         'paylink',
+        'proxy_ip',
+        'proxy_port',
+        'proxy_username',
+        'proxy_password',
     ];
 
     protected $casts = [

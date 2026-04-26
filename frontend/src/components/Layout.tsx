@@ -84,7 +84,7 @@ const Layout = () => {
             <div className="logo-icon">
               <Zap size={18} color="#fff" />
             </div>
-            {(!collapsed || isMobile) && <span>IvackPanel</span>}
+            {(!collapsed || isMobile) && <span>S L O T B A S E</span>}
           </div>
           {!isMobile && (
             <button className="hamburger-btn" onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand' : 'Collapse'}>

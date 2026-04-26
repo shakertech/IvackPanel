@@ -17,9 +17,11 @@ class Task extends Model
         'phone',
         'email',
         'password',
+        'peoples',
+        'priority',
         'status',
         'result',
-        'peoples',
+        'paylink',
     ];
 
     protected $casts = [

@@ -69,14 +69,15 @@ const Users = () => {
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>System Users</h2>
-        <button className="btn btn-primary" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={handleCreate}>
-          <Plus size={18} /> Add User
+      <div className="card-header">
+        <h2 className="card-title">System Users</h2>
+        <button className="btn btn-primary" onClick={handleCreate}>
+          <Plus size={16} /> Add User
         </button>
       </div>
 
-      <div className="table-container">
+      <div className="card-body">
+        <div className="table-container">
         <table>
           <thead>
             <tr>
@@ -110,6 +111,7 @@ const Users = () => {
             ))}
           </tbody>
         </table>
+      </div>
       </div>
 
       {modalOpen && (

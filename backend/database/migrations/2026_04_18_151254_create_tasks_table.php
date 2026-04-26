@@ -19,7 +19,8 @@ return new class extends Migration
             $table->string('email');
             $table->string('password');
             $table->string("peoples")->default(1);
-            $table->string('status')->nullable()->default('open');
+            $table->enum('priority',['low','medium','high'])->default('medium');
+            $table->string('status')->nullable()->default('active');
             $table->string('result')->nullable()->default('waiting');
             $table->string('paylink')->nullable()->default(null);
             $table->timestamps();

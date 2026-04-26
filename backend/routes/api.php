@@ -18,26 +18,31 @@ Route::post('/license/login', [LicenseAuthController::class, 'login']);
 Route::get('/get-otp/{phone}', [OtpController::class, 'getOtpByPhone']);
 Route::post('/insert-otp', [OtpController::class, 'insertotp']);
 
+// --- Public Open API ---
+Route::get('/open/tasks', [TaskController::class, 'get_all_tasks']); 
+Route::post('/open/update_paylink', [TaskController::class, 'update_paylink']);
+Route::post('/open/update_result', [TaskController::class, 'update_result']);
 
 
- 
+
 // --- Authenticated Routes ---
-Route::middleware('auth:sanctum')->group(function () {
-    
+Route::middleware('auth:sanctum')->group(function () {    
     // Auth User info
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
     Route::post('/license/validate', [LicenseAuthController::class, 'validate']);
-
     Route::post('/logout', [UserAuthController::class, 'logout']);
     Route::post('/license/logout', [LicenseAuthController::class, 'logout']);
-
     // --- Task Management (Common for Users & Licenses) ---
-    Route::apiResource('tasks', TaskController::class);
+    Route::get('/tasks', [TaskController::class, 'index']);
+    Route::post('/tasks', [TaskController::class, 'store']);
+    Route::get('/tasks/{task}', [TaskController::class, 'show']);
+    Route::post('/tasks/{task}', [TaskController::class, 'update']);
+    Route::post('/tasks/{task}/priority', [TaskController::class, 'updatePriority']);
+    Route::post('/tasks/{task}/delete', [TaskController::class, 'destroy']);
     Route::apiResource('proxies', ProxyController::class);
     Route::apiResource('captchas', CaptchaController::class);
-
     // --- Admin Management Routes ---
     Route::middleware('admin')->group(function () {
         Route::apiResource('licenses', LicenseController::class);
@@ -45,3 +50,9 @@ Route::middleware('auth:sanctum')->group(function () {
        
     });
 });
+
+
+
+
+/*Tasks*/
+

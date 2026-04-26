@@ -76,14 +76,15 @@ const Licenses = () => {
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>License Keys</h2>
-        <button className="btn btn-primary" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={handleCreate}>
-          <Plus size={18} /> Generate License
+      <div className="card-header">
+        <h2 className="card-title">License Keys</h2>
+        <button className="btn btn-primary" onClick={handleCreate}>
+          <Plus size={16} /> Generate License
         </button>
       </div>
 
-      <div className="table-container">
+      <div className="card-body">
+        <div className="table-container">
         <table>
           <thead>
             <tr>
@@ -129,6 +130,7 @@ const Licenses = () => {
             ))}
           </tbody>
         </table>
+      </div>
       </div>
 
       {modalOpen && (

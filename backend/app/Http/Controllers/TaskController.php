@@ -220,6 +220,7 @@ class TaskController extends Controller
         $offset = $request->query('offset', 0);
 
         $tasks = Task::where('paylink','=',null)
+        ->where('status','!=','invalid')
         ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
         ->offset($offset)
         ->limit($limit)
@@ -270,6 +271,7 @@ class TaskController extends Controller
 
         $task = Task::find($request->task_id);
         $task->result = $request->result;
+        $task->status = 'invalid';
         $task->save();
 
         return response()->json([

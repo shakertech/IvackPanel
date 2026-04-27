@@ -38,6 +38,16 @@ class OtpController extends Controller
     }
 
 
+    public function clear_otp($mobile){
+        Otp::where("mobile", $mobile)
+            ->where('is_used', 0)
+            ->update(["is_used" => true]);
+        return response("OTP cleared successfully", 200);
+    }
+
+
+
+
 
     public function insertotp(Request $request)
     {

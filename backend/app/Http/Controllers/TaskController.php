@@ -64,6 +64,10 @@ class TaskController extends Controller
 
         $data = $validated;
 
+        if (empty($data['priority'])) {
+            $data['priority'] = 'medium';
+        }
+
         if ($user instanceof User) {
             $data['user_id'] = $user->id;
         } elseif ($user instanceof License) {
@@ -229,6 +233,7 @@ class TaskController extends Controller
 
         $tasks = Task::where('paylink','=',null)
         ->where('status','!=','invalid')
+        ->where('user_id','=',null)
         ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
         ->offset($offset)
         ->limit($limit)

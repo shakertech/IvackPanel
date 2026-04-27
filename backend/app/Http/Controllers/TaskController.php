@@ -189,9 +189,17 @@ class TaskController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, Task $task)
+    public function destroy(Request $request, $task_id)
     {
         $user = $request->user();
+
+        $task = Task::find($task_id);
+        if($task == null){
+            return response()->json([
+                'success' => false,
+                'message' => 'Task not found',
+            ], 404);
+        }
 
         // Only owner or admin can delete
         if ($user instanceof User) {

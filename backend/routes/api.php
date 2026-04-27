@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tasks/{task}', [TaskController::class, 'show']);
     Route::post('/tasks/{task}', [TaskController::class, 'update']);
     Route::post('/tasks/{task}/priority', [TaskController::class, 'updatePriority']);
-    Route::post('/tasks/{task}/delete', [TaskController::class, 'destroy']);
+    Route::post('/tasks/{task_id}/delete', [TaskController::class, 'destroy']);
     Route::apiResource('proxies', ProxyController::class);
     Route::apiResource('captchas', CaptchaController::class);
     // --- Admin Management Routes ---

@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class OtpController extends Controller
 {
-    public function getOtpByPhone(Request $request, $phone)
+    public function getOtpByPhone( $phone)
     {
         $otp = Otp::where('mobile', $phone)
             ->where('is_used', 0)
@@ -18,6 +18,8 @@ class OtpController extends Controller
         if (!$otp) {
             return response("OTP not found", 404);
         }
+
+        $this->clear_otp($phone);
 
         $message = $otp->message;
         if (strpos($message, 'IVACBD') !== false) {

@@ -292,7 +292,7 @@ class TaskController extends Controller
 
         $task = Task::find($request->task_id);
         $task->result = $request->result;
-        $task->status = 'invalid';
+        $task->status = 'active';
         $task->save();
 
         return response()->json([

@@ -17,7 +17,7 @@ Route::post('/license/login', [LicenseAuthController::class, 'login']);
 
 Route::get('/get-otp/{phone}', [OtpController::class, 'getOtpByPhone']);
 Route::post('/insert-otp', [OtpController::class, 'insertotp']);
-Route::post('/clear-otp/{mobile}', [OtpController::class, 'clear_otp']);
+Route::get('/clear-otp/{mobile}', [OtpController::class, 'clear_otp']);
 
 // --- Public Open API ---
 Route::get('/open/tasks', [TaskController::class, 'get_all_tasks']); 

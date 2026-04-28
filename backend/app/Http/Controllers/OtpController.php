@@ -11,6 +11,7 @@ class OtpController extends Controller
     {
         $otp = Otp::where('mobile', $phone)
             ->where('is_used', 0)
+            ->where('message', 'LIKE', '%IVACBD%')
             ->latest()
             ->first();
 

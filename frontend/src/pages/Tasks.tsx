@@ -1,28 +1,38 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../api/axios';
 import { 
   Plus, Eye, Trash2, X, Edit, 
   ChevronLeft, ChevronRight, 
   ExternalLink, CheckCircle, CheckSquare, Clock,
-  AlertCircle, Search, ListFilter, RefreshCw
+  AlertCircle, Search, ListFilter, RefreshCw,
+  Upload, FileText, Smartphone, Copy
 } from 'lucide-react';
+
+interface TaskFile {
+  name: string;
+  path: string;
+  url: string;
+}
 
 interface Task {
   id: string;
   phone: string;
   email: string;
   password?: string;
-  peoples?: string;
+  peoples?: number;
   priority: 'low' | 'medium' | 'high';
+  files?: TaskFile[];
+  ivacCenter?: string;
+  mission?: string;
+  visatype?: string;
   status: string;
   result?: string;
   paylink?: string | null;
+  success_at?: string;
+  device_last_seen?: string | null;
+  device_online?: boolean;
   user_id?: string;
   license_id?: string;
-  proxy_ip?: string;
-  proxy_port?: string;
-  proxy_username?: string;
-  proxy_password?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -46,6 +56,11 @@ const Tasks = () => {
   // Toast
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // File upload
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -53,7 +68,13 @@ const Tasks = () => {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const response = await api.get('/tasks');
+      setLoading(true);
+      const response = await api.get('/tasks', {
+        params: {
+          status: filterStatus,
+          search: searchQuery
+        }
+      });
       const data = response.data?.data || response.data || [];
       setTasks(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -62,25 +83,17 @@ const Tasks = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterStatus, searchQuery]);
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    const timer = setTimeout(() => {
+      fetchTasks();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [filterStatus, searchQuery, fetchTasks]);
 
-  // Filtering
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = searchQuery === '' || 
-      task.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (task.result || '').toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesFilter = filterStatus === 'all' ||
-      (filterStatus === 'completed' && task.paylink) ||
-      (filterStatus === 'active' && !task.paylink);
-
-    return matchesSearch && matchesFilter;
-  });
+  // Filtering is now done on the backend
+  const filteredTasks = tasks;
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredTasks.length / ITEMS_PER_PAGE));
@@ -96,19 +109,15 @@ const Tasks = () => {
 
   // ---- HANDLERS ----
   const handleCreate = () => {
-    setFormData({
-      phone: '',
-      email: '',
-      password: '',
-      peoples: '1',
-      priority: 'medium',
-    });
+    setFormData({ phone: '', email: '', password: '', priority: 'medium' });
+    setSelectedFiles([]);
     setCreateModalOpen(true);
   };
 
   const handleEdit = (task: Task) => {
     setFormData({ ...task });
     setSelectedTask(task);
+    setSelectedFiles([]);
     setEditModalOpen(true);
   };
 
@@ -117,10 +126,31 @@ const Tasks = () => {
     setViewModalOpen(true);
   };
 
+  // File helpers
+  const addFiles = (files: FileList | null) => {
+    if (!files) return;
+    const pdfs = Array.from(files).filter(f => f.type === 'application/pdf');
+    setSelectedFiles(prev => [...prev, ...pdfs]);
+  };
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/tasks', formData);
+      const fd = new FormData();
+      fd.append('phone', formData.phone || '');
+      fd.append('email', formData.email || '');
+      fd.append('password', formData.password || '');
+      fd.append('priority', formData.priority || 'medium');
+      selectedFiles.forEach(f => fd.append('files[]', f));
+      await api.post('/tasks', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setCreateModalOpen(false);
       showToast('Task created successfully', 'success');
       fetchTasks();
@@ -133,7 +163,13 @@ const Tasks = () => {
     e.preventDefault();
     if (!selectedTask) return;
     try {
-      await api.post(`/tasks/${selectedTask.id}`, formData);
+      const fd = new FormData();
+      if (formData.phone) fd.append('phone', formData.phone);
+      if (formData.email) fd.append('email', formData.email);
+      if (formData.password) fd.append('password', formData.password);
+      if (formData.priority) fd.append('priority', formData.priority);
+      selectedFiles.forEach(f => fd.append('files[]', f));
+      await api.post(`/tasks/${selectedTask.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setEditModalOpen(false);
       showToast('Task updated successfully', 'success');
       fetchTasks();
@@ -189,12 +225,7 @@ const Tasks = () => {
     );
   };
 
-  const getResultBadge = (result?: string) => {
-    if (!result || result === 'waiting') {
-      return <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>Waiting</span>;
-    }
-    return <span style={{ fontSize: '0.8rem' }}>{result}</span>;
-  };
+
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
@@ -202,6 +233,18 @@ const Tasks = () => {
       month: 'short', day: 'numeric', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
+  };
+
+  const timeAgo = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
   };
 
   // Pagination buttons
@@ -224,22 +267,22 @@ const Tasks = () => {
   return (
     <div>
       {/* Stats row */}
-      <div className="stat-grid">
-        <div className="stat-card">
-          <div className="stat-label">Total Tasks</div>
-          <div className="stat-value">{tasks.length}</div>
+      <div className="stat-grid" style={{ marginBottom: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <div className="stat-card" style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="stat-label" style={{ marginBottom: 0 }}>Total Tasks</div>
+          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{tasks.length}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Active</div>
-          <div className="stat-value">{tasks.filter(t => !t.paylink).length}</div>
+        <div className="stat-card" style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="stat-label" style={{ marginBottom: 0 }}>Active</div>
+          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{tasks.filter(t => !t.paylink).length}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Completed</div>
-          <div className="stat-value">{tasks.filter(t => !!t.paylink).length}</div>
+        <div className="stat-card" style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="stat-label" style={{ marginBottom: 0 }}>Completed</div>
+          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{tasks.filter(t => !!t.paylink).length}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">High Priority</div>
-          <div className="stat-value">{tasks.filter(t => t.priority === 'high' && !t.paylink).length}</div>
+        <div className="stat-card" style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="stat-label" style={{ marginBottom: 0 }}>High Priority</div>
+          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{tasks.filter(t => t.priority === 'high' && !t.paylink).length}</div>
         </div>
       </div>
 
@@ -271,8 +314,13 @@ const Tasks = () => {
                 style={{ paddingLeft: '32px', fontSize: '0.82rem', padding: '7px 36px 7px 32px', minWidth: '130px' }}
               >
                 <option value="all">All Tasks</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
+                <option value="active">Active (Pending Pay)</option>
+                <option value="completed">Completed (Paid)</option>
+                <option value="online">Online Devices</option>
+                <option value="offline">Offline Devices</option>
+                <option value="pending">Status: Pending</option>
+                <option value="success">Status: Success</option>
+                <option value="error">Status: Error</option>
               </select>
             </div>
           </div>
@@ -311,12 +359,12 @@ const Tasks = () => {
                     <tr>
                       <th style={{ width: '40px' }}>#</th>
                       <th>Phone / Email</th>
-                      <th>People</th>
+                      <th>Mission / Visa</th>
+                      <th>Files</th>
                       <th>Priority</th>
                       <th>Status</th>
-                      <th>Result</th>
-                      <th>Proxy</th>
-                      <th>Payment</th>                  
+                      <th>Device</th>
+                      <th>Payment</th>
                       <th style={{ width: '120px' }}>Actions</th>
                     </tr>
                   </thead>
@@ -331,7 +379,15 @@ const Tasks = () => {
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{task.email}</div>
                         </td>
                         <td>
-                          <span style={{ fontWeight: 600 }}>{task.peoples || '1'}</span>
+                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{task.mission || '—'}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{task.visatype || '—'}</div>
+                        </td>
+                        <td>
+                          {task.files && task.files.length > 0 ? (
+                            <span className="files-badge"><FileText size={11} /> {task.files.length}</span>
+                          ) : (
+                            <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}>—</span>
+                          )}
                         </td>
                         <td>
                           <select
@@ -345,21 +401,55 @@ const Tasks = () => {
                             <option value="high">High</option>
                           </select>
                         </td>
-                        <td>{getStatusBadge(task)}</td>
-                        <td>{getResultBadge(task.result)}</td>
                         <td>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>
-                            {task.proxy_ip || <span style={{ color: 'var(--text-dim)' }}>—</span>}
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                            {getStatusBadge(task)}
+                            {task.result && task.result !== 'waiting' && (
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', lineHeight: 1.3, maxWidth: '140px' }}>
+                                {task.result}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          {task.device_last_seen ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className={`device-dot ${task.device_online ? 'online' : 'offline'}`} />
+                              <div>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: task.device_online ? 'var(--success)' : 'var(--text-dim)' }}>
+                                  {task.device_online ? 'Online' : 'Offline'}
+                                </div>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>{timeAgo(task.device_last_seen)}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Smartphone size={12} /> No device
+                            </span>
+                          )}
                         </td>
                         <td>
                           {task.paylink ? (
-                            <button
-                              className="btn-pay"
-                              onClick={() => window.open(task.paylink!, '_blank')}
-                            >
-                              <ExternalLink size={13} /> Pay Now
-                            </button>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button
+                                className="btn-pay"
+                                style={{ padding: '5px 10px' }}
+                                onClick={() => window.open(task.paylink!, '_blank')}
+                              >
+                                <ExternalLink size={13} /> Pay
+                              </button>
+                              <button
+                                className="btn-icon"
+                                style={{ background: 'var(--primary-light)', color: 'var(--primary)', border: '1px solid var(--primary-glow)', width: '30px', height: '30px' }}
+                                onClick={() => {
+                                  navigator.clipboard.writeText(task.paylink!);
+                                  showToast('Link copied!', 'success');
+                                }}
+                                title="Copy Link"
+                              >
+                                <Copy size={13} />
+                              </button>
+                            </div>
                           ) : (
                             <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}>—</span>
                           )}
@@ -469,10 +559,6 @@ const Tasks = () => {
                     <input className="form-input" value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} placeholder="Account password" required />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">People Count</label>
-                    <input className="form-input" value={formData.peoples || '1'} onChange={e => setFormData({ ...formData, peoples: e.target.value })} required />
-                  </div>
-                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
                     <label className="form-label">Priority</label>
                     <select className="form-select" value={formData.priority || 'medium'} onChange={e => setFormData({ ...formData, priority: e.target.value as Task['priority'] })}>
                       <option value="low">Low</option>
@@ -480,22 +566,34 @@ const Tasks = () => {
                       <option value="high">High</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Proxy IP</label>
-                    <input className="form-input" value={formData.proxy_ip || ''} onChange={e => setFormData({ ...formData, proxy_ip: e.target.value })} placeholder="192.168.1.1" />
+                </div>
+                <div className="form-group" style={{ marginTop: '8px' }}>
+                  <label className="form-label">PDF Documents</label>
+                  <input type="file" ref={fileInputRef} accept=".pdf" multiple style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
+                  <div
+                    className={`file-drop-zone${dragOver ? ' drag-over' : ''}`}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+                  >
+                    <div className="file-drop-zone-icon"><Upload size={28} /></div>
+                    <div className="file-drop-zone-text">Click or drag PDF files here</div>
+                    <div className="file-drop-zone-hint">Max 10MB per file · PDF only</div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Proxy Port</label>
-                    <input className="form-input" value={formData.proxy_port || ''} onChange={e => setFormData({ ...formData, proxy_port: e.target.value })} placeholder="8080" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Proxy Username</label>
-                    <input className="form-input" value={formData.proxy_username || ''} onChange={e => setFormData({ ...formData, proxy_username: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Proxy Password</label>
-                    <input type="password" className="form-input" value={formData.proxy_password || ''} onChange={e => setFormData({ ...formData, proxy_password: e.target.value })} />
-                  </div>
+                  {selectedFiles.length > 0 && (
+                    <div className="file-list">
+                      {selectedFiles.map((f, i) => (
+                        <div className="file-item" key={i}>
+                          <div className="file-item-name"><FileText size={14} /> <span>{f.name}</span></div>
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <span className="file-item-size">{formatFileSize(f.size)}</span>
+                            <button type="button" className="file-item-remove" onClick={e => { e.stopPropagation(); removeFile(i); }}><X size={14} /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
@@ -531,10 +629,6 @@ const Tasks = () => {
                     <input className="form-input" value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">People Count</label>
-                    <input className="form-input" value={formData.peoples || '1'} onChange={e => setFormData({ ...formData, peoples: e.target.value })} />
-                  </div>
-                  <div className="form-group">
                     <label className="form-label">Priority</label>
                     <select className="form-select" value={formData.priority || 'medium'} onChange={e => setFormData({ ...formData, priority: e.target.value as Task['priority'] })}>
                       <option value="low">Low</option>
@@ -542,26 +636,42 @@ const Tasks = () => {
                       <option value="high">High</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Status</label>
-                    <input className="form-input" value={formData.status || ''} onChange={e => setFormData({ ...formData, status: e.target.value })} />
+                </div>
+                {/* Existing files */}
+                {selectedTask?.files && selectedTask.files.length > 0 && (
+                  <div className="form-group" style={{ marginTop: '8px' }}>
+                    <label className="form-label">Existing Files</label>
+                    <div className="file-list">
+                      {selectedTask.files.map((f, i) => (
+                        <div className="file-item" key={i}>
+                          <div className="file-item-name"><FileText size={14} /> <span>{f.name}</span></div>
+                          <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.72rem', color: 'var(--primary)' }}>View</a>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Proxy IP</label>
-                    <input className="form-input" value={formData.proxy_ip || ''} onChange={e => setFormData({ ...formData, proxy_ip: e.target.value })} />
+                )}
+                {/* Upload new files */}
+                <div className="form-group" style={{ marginTop: '8px' }}>
+                  <label className="form-label">Add More PDFs</label>
+                  <input type="file" accept=".pdf" multiple style={{ display: 'none' }} id="edit-file-input" onChange={e => addFiles(e.target.files)} />
+                  <div className="file-drop-zone" onClick={() => document.getElementById('edit-file-input')?.click()}>
+                    <div className="file-drop-zone-icon"><Upload size={24} /></div>
+                    <div className="file-drop-zone-text">Click to add PDF files</div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Proxy Port</label>
-                    <input className="form-input" value={formData.proxy_port || ''} onChange={e => setFormData({ ...formData, proxy_port: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Proxy Username</label>
-                    <input className="form-input" value={formData.proxy_username || ''} onChange={e => setFormData({ ...formData, proxy_username: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Proxy Password</label>
-                    <input type="password" className="form-input" value={formData.proxy_password || ''} onChange={e => setFormData({ ...formData, proxy_password: e.target.value })} />
-                  </div>
+                  {selectedFiles.length > 0 && (
+                    <div className="file-list">
+                      {selectedFiles.map((f, i) => (
+                        <div className="file-item" key={i}>
+                          <div className="file-item-name"><FileText size={14} /> <span>{f.name}</span></div>
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <span className="file-item-size">{formatFileSize(f.size)}</span>
+                            <button type="button" className="file-item-remove" onClick={() => removeFile(i)}><X size={14} /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
@@ -596,8 +706,12 @@ const Tasks = () => {
                   <div className="detail-value">{selectedTask.password || '—'}</div>
                 </div>
                 <div className="detail-item">
-                  <div className="detail-label">People Count</div>
-                  <div className="detail-value">{selectedTask.peoples || '1'}</div>
+                  <div className="detail-label">Mission</div>
+                  <div className="detail-value">{selectedTask.mission || '—'}</div>
+                </div>
+                <div className="detail-item">
+                  <div className="detail-label">Visa Type</div>
+                  <div className="detail-value">{selectedTask.visatype || '—'}</div>
                 </div>
                 <div className="detail-item">
                   <div className="detail-label">Priority</div>
@@ -616,14 +730,47 @@ const Tasks = () => {
                   <div className="detail-value">{selectedTask.result || 'Waiting'}</div>
                 </div>
                 <div className="detail-item">
-                  <div className="detail-label">Proxy</div>
-                  <div className="detail-value">{selectedTask.proxy_ip ? `${selectedTask.proxy_ip}:${selectedTask.proxy_port || ''}` : 'None'}</div>
+                  <div className="detail-label">Device Status</div>
+                  <div className="detail-value">
+                    {selectedTask.device_last_seen ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className={`device-dot ${selectedTask.device_online ? 'online' : 'offline'}`} />
+                        <div>
+                          <span style={{ fontWeight: 600, color: selectedTask.device_online ? 'var(--success)' : 'var(--error)' }}>
+                            {selectedTask.device_online ? 'Online' : 'Offline'}
+                          </span>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                            Last seen: {timeAgo(selectedTask.device_last_seen)}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-dim)' }}>No device connected</span>
+                    )}
+                  </div>
                 </div>
                 <div className="detail-item">
                   <div className="detail-label">Created</div>
                   <div className="detail-value">{formatDate(selectedTask.created_at)}</div>
                 </div>
               </div>
+
+              {/* Files Section */}
+              {selectedTask.files && selectedTask.files.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <div className="detail-label" style={{ marginBottom: '8px' }}>Uploaded Documents ({selectedTask.files.length})</div>
+                  <div className="file-list">
+                    {selectedTask.files.map((f, i) => (
+                      <div className="file-item" key={i}>
+                        <div className="file-item-name"><FileText size={14} /> <span>{f.name}</span></div>
+                        <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'none', fontWeight: 500 }}>
+                          <ExternalLink size={12} style={{ marginRight: '4px' }} />View
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {selectedTask.paylink && (
                 <div style={{ marginTop: '20px', padding: '16px', background: 'var(--success-bg)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(16,185,129,0.2)' }}>

@@ -2,45 +2,63 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\TaskResource;
 use App\Models\License;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class TaskController extends Controller
 {
     public function index(Request $request)
     {
         $user = $request->user();
+        $query = Task::with(['license', 'user'])->latest();
 
-        // Admin sees all tasks
-        if ($user instanceof User && $user->role === 'admin') {
-            $tasks = Task::with(['license', 'user'])->latest()->get();
-            return response()->json([
-                'success' => true,
-                'data' => $tasks,
-            ]);
+        // Admin sees all tasks, others see their own
+        if (!($user instanceof User && $user->role === 'admin')) {
+            if ($user instanceof User) {
+                $query->where('user_id', $user->id);
+            } elseif ($user instanceof License) {
+                $query->where('license_id', $user->id);
+            } else {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
         }
 
-        // Regular user sees their tasks
-        if ($user instanceof User) {
-            $tasks = Task::where('user_id', $user->id)->latest()->get();
-            return response()->json([
-                'success' => true,
-                'data' => $tasks,
-            ]);
+        // Search filter
+        if ($request->has('search') && $request->search != '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('phone', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('result', 'like', "%{$search}%");
+            });
         }
 
-        // License sees its own tasks
-        if ($user instanceof License) {
-            $tasks = Task::where('license_id', $user->id)->latest()->get();
-            return response()->json([
-                'success' => true,
-                'data' => $tasks,
-            ]);
+        // Status filter
+        if ($request->has('status') && $request->status != 'all') {
+            $status = $request->status;
+            if ($status === 'active') {
+                $query->whereNull('paylink');
+            } elseif ($status === 'completed') {
+                $query->whereNotNull('paylink');
+            } elseif ($status === 'online') {
+                $query->where('device_last_seen', '>=', now()->subMinutes(5));
+            } elseif ($status === 'offline') {
+                $query->where('device_last_seen', '<', now()->subMinutes(5));
+            } elseif (in_array($status, ['pending', 'success', 'error'])) {
+                $query->where('status', $status);
+            }
         }
 
-        return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        $tasks = $query->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => TaskResource::collection($tasks),
+        ]);
     }
 
     public function store(Request $request)
@@ -51,22 +69,17 @@ class TaskController extends Controller
             'phone' => 'required|string',
             'email' => 'required|email',
             'password' => 'required|string',
-            'peoples' => 'required|string',
             'priority' => 'nullable|string|in:low,medium,high',
-            'status' => 'nullable|string',
-            'result' => 'nullable|string',
-            'paylink' => 'nullable|string',
-            'proxy_ip' => 'nullable|string',
-            'proxy_port' => 'nullable|string',
-            'proxy_username' => 'nullable|string',
-            'proxy_password' => 'nullable|string',
+            'files' => 'nullable|array|max:10',
+            'files.*' => 'file|mimes:pdf|max:10240', // max 10MB per PDF
         ]);
 
-        $data = $validated;
-
-        if (empty($data['priority'])) {
-            $data['priority'] = 'medium';
-        }
+        $data = [
+            'phone' => $validated['phone'],
+            'email' => $validated['email'],
+            'password' => $validated['password'],
+            'priority' => $validated['priority'] ?? 'medium',
+        ];
 
         if ($user instanceof User) {
             $data['user_id'] = $user->id;
@@ -74,12 +87,22 @@ class TaskController extends Controller
             $data['license_id'] = $user->id;
         }
 
+        // Handle PDF file uploads
+        if ($request->hasFile('files')) {
+            $paths = [];
+            foreach ($request->file('files') as $file) {
+                $path = $file->store('task-files', 'public');
+                $paths[] = $path;
+            }
+            $data['files'] = $paths;
+        }
+
         $task = Task::create($data);
 
         return response()->json([
             'success' => true,
             'message' => 'Task created successfully',
-            'data' => $task,
+            'data' => new TaskResource($task),
         ], 201);
     }
 
@@ -102,7 +125,7 @@ class TaskController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $task,
+            'data' => new TaskResource($task),
         ]);
     }
 
@@ -133,23 +156,41 @@ class TaskController extends Controller
             'phone' => 'sometimes|string',
             'email' => 'sometimes|email',
             'password' => 'sometimes|string',
-            'peoples' => 'sometimes|string',
             'priority' => 'sometimes|string|in:low,medium,high',
-            'status' => 'nullable|string',
-            'result' => 'nullable|string',
-            'paylink' => 'nullable|string',
-            'proxy_ip' => 'nullable|string',
-            'proxy_port' => 'nullable|string',
-            'proxy_username' => 'nullable|string',
-            'proxy_password' => 'nullable|string',
+            'files' => 'nullable|array|max:10',
+            'files.*' => 'file|mimes:pdf|max:10240',
+            'remove_files' => 'nullable|array', // array of file paths to remove
+            'remove_files.*' => 'string',
         ]);
 
-        $task->update($validated);
+        $data = collect($validated)->only(['phone', 'email', 'password', 'priority'])->toArray();
+
+        // Handle file removal
+        if ($request->has('remove_files')) {
+            $existingFiles = $task->files ?? [];
+            foreach ($request->remove_files as $filePath) {
+                Storage::disk('public')->delete($filePath);
+                $existingFiles = array_filter($existingFiles, fn($f) => $f !== $filePath);
+            }
+            $data['files'] = array_values($existingFiles);
+        }
+
+        // Handle new file uploads (append to existing)
+        if ($request->hasFile('files')) {
+            $existingFiles = $data['files'] ?? $task->files ?? [];
+            foreach ($request->file('files') as $file) {
+                $path = $file->store('task-files', 'public');
+                $existingFiles[] = $path;
+            }
+            $data['files'] = $existingFiles;
+        }
+
+        $task->update($data);
 
         return response()->json([
             'success' => true,
             'message' => 'Task updated successfully',
-            'data' => $task,
+            'data' => new TaskResource($task),
         ]);
     }
 
@@ -185,7 +226,7 @@ class TaskController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Priority updated successfully',
-            'data' => $task,
+            'data' => new TaskResource($task),
         ]);
     }
 
@@ -220,6 +261,13 @@ class TaskController extends Controller
             ], 422);
         }
 
+        // Delete associated files from storage
+        if ($task->files) {
+            foreach ($task->files as $filePath) {
+                Storage::disk('public')->delete($filePath);
+            }
+        }
+
         $task->delete();
 
         return response()->json([
@@ -239,19 +287,18 @@ class TaskController extends Controller
         $limit = $request->query('limit', 100);
         $offset = $request->query('offset', 0);
 
-        $tasks = Task::where('paylink','=',null)
-        ->where('status','!=','invalid')
-        ->where('license_id','=',null)
-        ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
-        ->offset($offset)
-        ->limit($limit)
-        ->get();
+        // Bot only gets active tasks that are not yet completed
+        $tasks = Task::where('paylink', null)
+            ->whereIn('status', ['active', 'pending'])
+            ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
+            ->offset($offset)
+            ->limit($limit)
+            ->get();
 
         return response()->json([
             'success' => true,
-            'data' => $tasks,
+            'data' => TaskResource::collection($tasks),
         ]);
-
     }
 
 
@@ -271,14 +318,15 @@ class TaskController extends Controller
         }
 
         $task->paylink = $request->paylink;
-        $task->status = 'completed';
-        $task->result = 'Done';
+        $task->status = 'complete';
+        $task->result = 'Success';
+        $task->success_at = now();
         $task->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Paylink updated successfully',
-            'data' => $task
+            'data' => new TaskResource($task)
         ]);
     }
 
@@ -288,17 +336,59 @@ class TaskController extends Controller
         $request->validate([
             'task_id' => 'required|exists:tasks,id',
             'result' => 'required|string',
+            'status' => 'nullable|string|in:active,inactive,pending,success,error,complete',
         ]);
 
         $task = Task::find($request->task_id);
         $task->result = $request->result;
-        $task->status = 'active';
+        if ($request->has('status')) {
+            $task->status = $request->status;
+        }
         $task->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Result updated successfully',
-            'data' => $task
+            'data' => new TaskResource($task)
+        ]);
+    }
+
+    public function update_device_status(Request $request){
+        $request->validate([
+            'phone1' => 'required|string', 
+            'phone2' => 'required|string', 
+        ]);
+
+        // Update all active tasks for this phone number
+        Task::where('phone1', $request->phone1)->orWhere('phone2', $request->phone2)
+            ->whereNull('paylink')
+            ->update(['device_last_seen' => now()]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Device status updated'
+        ]);
+    }
+
+    public function update_bot_details(Request $request){
+        $request->validate([
+            'task_id' => 'required|exists:tasks,id',
+            'mission' => 'nullable|string',
+            'visatype' => 'nullable|string',
+            'peoples' => 'nullable|integer',
+            'ivacCenter' => 'nullable|string',
+        ]);
+
+        $task = Task::find($request->task_id);
+        if ($request->has('mission')) $task->mission = $request->mission;
+        if ($request->has('visatype')) $task->visatype = $request->visatype;
+        if ($request->has('peoples')) $task->peoples = $request->peoples;
+        if ($request->has('ivacCenter')) $task->ivacCenter = $request->ivacCenter;
+        $task->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bot details updated'
         ]);
     }
 

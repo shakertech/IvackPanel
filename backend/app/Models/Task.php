@@ -19,16 +19,21 @@ class Task extends Model
         'password',
         'peoples',
         'priority',
+        'files',
+        'ivacCenter',
+        'mission',
+        'visatype',
         'status',
         'result',
         'paylink',
-        'proxy_ip',
-        'proxy_port',
-        'proxy_username',
-        'proxy_password',
+        'success_at',
+        'device_last_seen',
     ];
 
     protected $casts = [
+        'files' => 'array',
+        'success_at' => 'datetime',
+        'device_last_seen' => 'datetime',
     ];
 
     public function license(): BelongsTo

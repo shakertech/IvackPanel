@@ -16,10 +16,13 @@ class OtpController extends Controller
             ->first();
 
         if (!$otp) {
-            return response("OTP not found", 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP not found'
+            ], 404);
         }
 
-        $this->clear_otp($phone);
+        $this->clear_otp_internal($phone);
 
         $message = $otp->message;
         if (strpos($message, 'IVACBD') !== false) {
@@ -30,22 +33,33 @@ class OtpController extends Controller
             $otp->is_used = 1;
             $otp->save();
 
-            return response([
+            return response()->json([
+                'success' => true,
                 'mobile' => $otp->mobile,
                 'otp' => $otp->code,
                 'time' => $otp->created_at->format('Y-m-d H:i:s'),
             ], 200);
         } else {
-            return response("OTP format not found", 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP format not found'
+            ], 400);
         }
     }
 
 
     public function clear_otp($mobile){
+        $this->clear_otp_internal($mobile);
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP cleared successfully'
+        ], 200);
+    }
+
+    private function clear_otp_internal($mobile){
         Otp::where("mobile", $mobile)
             ->where('is_used', 0)
             ->update(["is_used" => true]);
-        return response("OTP cleared successfully", 200);
     }
 
 
@@ -77,7 +91,10 @@ class OtpController extends Controller
             'is_used' => 0,
         ]);
 
-        return response("OTP inserted successfully", 200);
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP inserted successfully'
+        ], 200);
     }
 
 

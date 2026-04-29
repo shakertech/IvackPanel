@@ -926,6 +926,68 @@ tr.completed-row td {
   to { transform: rotate(360deg); }
 }
 
+/* ========== DEVICE STATUS DOT ========== */
+.device-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+.device-dot.online {
+  background: var(--success);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  animation: pulse-online 2s infinite;
+}
+.device-dot.offline {
+  background: var(--text-dim);
+  box-shadow: 0 0 0 2px rgba(82, 82, 91, 0.15);
+}
+@keyframes pulse-online {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.05); }
+}
+
+/* ========== FILE UPLOAD ZONE ========== */
+.file-drop-zone {
+  border: 2px dashed var(--border-light);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  background: var(--bg-input);
+}
+.file-drop-zone:hover, .file-drop-zone.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.file-drop-zone-icon { color: var(--text-dim); margin-bottom: 8px; }
+.file-drop-zone-text { font-size: 0.85rem; color: var(--text-muted); }
+.file-drop-zone-hint { font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+
+.file-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.file-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: var(--bg-elevated);
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.file-item-name { display: flex; align-items: center; gap: 8px; color: var(--text-main); font-weight: 500; min-width: 0; }
+.file-item-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item-size { color: var(--text-dim); font-size: 0.72rem; margin-left: 8px; flex-shrink: 0; }
+.file-item-remove {
+  background: none; border: none; color: var(--text-dim); cursor: pointer;
+  padding: 2px; border-radius: 4px; display: flex; transition: all var(--transition); flex-shrink: 0;
+}
+.file-item-remove:hover { color: var(--error); background: var(--error-bg); }
+
+.files-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 9999px; font-size: 0.72rem;
+  font-weight: 600; background: var(--primary-light); color: var(--primary);
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 1024px) {
   .sidebar {

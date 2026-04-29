@@ -355,18 +355,27 @@ class TaskController extends Controller
 
     public function update_device_status(Request $request){
         $request->validate([
-            'phone1' => 'required|string', 
-            'phone2' => 'required|string', 
+            'phone1' => 'nullable|string', 
+            'phone2' => 'nullable|string', 
         ]);
 
-        // Update all active tasks for this phone number
-        Task::where('phone1', $request->phone1)->orWhere('phone2', $request->phone2)
-            ->whereNull('paylink')
+        $phones = collect([$request->phone1, $request->phone2])->filter()->values();
+
+        if ($phones->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No phone numbers provided'
+            ], 422);
+        }
+
+        // Update all active tasks for these phone numbers
+        $updatedCount = Task::whereIn('phone', $phones)
             ->update(['device_last_seen' => now()]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Device status updated'
+            'message' => 'Device status updated',
+            'updated_tasks' => $updatedCount
         ]);
     }
 

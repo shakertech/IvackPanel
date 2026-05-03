@@ -3,7 +3,7 @@ import api from '../api/axios';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
 
 interface User {
-  id: number;
+  id: string;
   name?: string; // Backend User model doesn't have name, but might have it in migration. Let's check.
   phone: string;
   role: 'admin' | 'user';
@@ -41,7 +41,7 @@ const Users = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         await api.delete(`/users/${id}`);
@@ -54,11 +54,19 @@ const Users = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) return;
+
     try {
-      if (currentUser?.id) {
-        await api.put(`/users/${currentUser.id}`, currentUser);
+      if (currentUser.id) {
+        await api.put(`/users/${currentUser.id}`, {
+          ...currentUser,
+          username: currentUser.phone // map internal 'phone' to 'username' for backend
+        });
       } else {
-        await api.post('/users', currentUser);
+        await api.post('/users', {
+          ...currentUser,
+          username: currentUser.phone // map internal 'phone' to 'username' for backend
+        });
       }
       setModalOpen(false);
       fetchUsers();
@@ -81,7 +89,7 @@ const Users = () => {
         <table>
           <thead>
             <tr>
-              <th>Phone</th>
+              <th>Username</th>
               <th>Role</th>
               <th>Status</th>
               <th>Actions</th>
@@ -122,17 +130,16 @@ const Users = () => {
               <button onClick={() => setModalOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><X /></button>
             </div>
             <form onSubmit={handleSubmit}>
-              {!currentUser?.id && (
-                <div className="form-group">
-                  <label className="form-label">Phone</label>
-                  <input 
-                    className="form-input" 
-                    value={currentUser?.phone || ''} 
-                    onChange={e => setCurrentUser({...currentUser, phone: e.target.value})}
-                    required 
-                  />
-                </div>
-              )}
+              <div className="form-group">
+                <label className="form-label">Username</label>
+                <input 
+                  className="form-input" 
+                  value={currentUser?.phone || ''} 
+                  onChange={e => setCurrentUser({...currentUser, phone: e.target.value})}
+                  placeholder="Enter username"
+                  required 
+                />
+              </div>
               {!currentUser?.id && (
                 <div className="form-group">
                   <label className="form-label">Password</label>

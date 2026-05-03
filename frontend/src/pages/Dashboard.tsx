@@ -40,7 +40,7 @@ const Dashboard = () => {
       <div className="card" style={{ marginBottom: '24px' }}>
         <div style={{ padding: '28px 28px' }}>
           <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '6px' }}>
-            Welcome back, <span style={{ background: 'linear-gradient(135deg, var(--primary), #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{user?.name}</span>
+            Welcome back, <span style={{ background: 'linear-gradient(135deg, var(--primary), #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{user?.phone}</span>
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             Here's an overview of your {user?.role === 'admin' ? 'system' : 'task'} activity.

@@ -16,14 +16,14 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'phone' => 'required|string|unique:users,phone',
+            'username' => 'required|string|unique:users,phone',
             'password' => 'required|string|min:6',
             'role' => 'nullable|string|in:user,admin',
             'status' => 'nullable|string',
         ]);
 
         $user = User::create([
-            'phone' => $validated['phone'],
+            'phone' => $validated['username'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'] ?? 'user',
             'status' => $validated['status'] ?? 'active',
@@ -40,17 +40,29 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'phone' => 'string|unique:users,phone,' . $user->id,
+            'username' => 'string|unique:users,phone,' . $user->id,
             'password' => 'nullable|string|min:6',
             'role' => 'string|in:user,admin',
             'status' => 'string',
         ]);
 
-        if (isset($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
+        if (isset($validated['username'])) {
+            $user->phone = $validated['username'];
         }
 
-        $user->update($validated);
+        if (isset($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        if (isset($validated['role'])) {
+            $user->role = $validated['role'];
+        }
+
+        if (isset($validated['status'])) {
+            $user->status = $validated['status'];
+        }
+
+        $user->save();
 
         return $user;
     }

@@ -143,11 +143,11 @@ const Layout = () => {
             </button>
             <div className="user-info">
               <div style={{ textAlign: 'right' }}>
-                <div className="user-name">{user?.name}</div>
+                <div className="user-name">{user?.phone}</div>
                 <div className="user-role">{user?.role}</div>
               </div>
               <div className="user-avatar">
-                {getInitials(user?.name)}
+                {getInitials(user?.phone)}
               </div>
             </div>
           </div>

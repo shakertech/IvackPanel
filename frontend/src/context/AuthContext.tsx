@@ -2,9 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api/axios';
 
 interface User {
-  id: number;
-  name: string;
-  email: string;
+  id: string;
+  phone: string;
   role: 'admin' | 'user';
 }
 

@@ -31,7 +31,11 @@ interface Task {
   success_at?: string;
   device_last_seen?: string | null;
   device_online?: boolean;
-  user_id?: string;
+  user?: {
+    id: string;
+    phone: string;
+    role: string;
+  };
   license_id?: string;
   created_at?: string;
   updated_at?: string;
@@ -358,6 +362,7 @@ const Tasks = () => {
                   <thead>
                     <tr>
                       <th style={{ width: '40px' }}>#</th>
+                      <th>User</th>
                       <th>Phone / Email</th>
                       <th>Mission / Visa</th>
                       <th>Files</th>
@@ -373,6 +378,15 @@ const Tasks = () => {
                       <tr key={task.id} className={isCompleted(task) ? 'completed-row' : ''}>
                         <td style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}>
                           {startIndex + index + 1}
+                        </td>
+                        <td>
+                          {task.user ? (
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--primary)' }}>
+                              {task.user.phone}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}>—</span>
+                          )}
                         </td>
                         <td>
                           <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{task.phone}</div>

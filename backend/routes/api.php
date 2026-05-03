@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 
 // --- Public Auth Routes ---
 Route::post('/login', [UserAuthController::class, 'login']);
+Route::post('/register', [UserAuthController::class, 'register']);
 Route::post('/license/login', [LicenseAuthController::class, 'login']);
 
 Route::get('/get-otp/{phone}', [OtpController::class, 'getOtpByPhone']);

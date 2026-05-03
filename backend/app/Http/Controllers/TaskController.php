@@ -287,9 +287,16 @@ class TaskController extends Controller
         $limit = $request->query('limit', 100);
         $offset = $request->query('offset', 0);
 
-        // Bot only gets active tasks that are not yet completed
+        // Bot only gets active tasks that are not yet completed and belong to active users
         $tasks = Task::where('paylink', null)
             ->whereIn('status', ['active', 'pending'])
+            ->where(function($q) {
+                $q->whereHas('user', function($uq) {
+                    $uq->where('status', 'active');
+                })->orWhereHas('license', function($lq) {
+                    $lq->where('status', 'active');
+                });
+            })
             ->orderByRaw("CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END")
             ->offset($offset)
             ->limit($limit)
@@ -360,11 +367,9 @@ class TaskController extends Controller
         ]);
 
         $phones = collect([$request->phone1, $request->phone2])->filter()->values();
-
         if ($phones->isEmpty()) {
             return response()->json([
-                'success' => false,
-                'message' => 'No phone numbers provided'
+                'ok' => false
             ], 422);
         }
 
@@ -373,9 +378,7 @@ class TaskController extends Controller
             ->update(['device_last_seen' => now()]);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Device status updated',
-            'updated_tasks' => $updatedCount
+            'ok' => true
         ]);
     }
 
